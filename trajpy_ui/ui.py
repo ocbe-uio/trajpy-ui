@@ -10,6 +10,8 @@ from matplotlib.figure import Figure
 from nicegui import ui
 from PIL import Image
 
+from trajpy_ui.utils import find_free_port
+
 FEATURES = [
     "Anomalous Exponent",
     "MSD Ratio",
@@ -403,4 +405,5 @@ with ui.row():
 
 # Start NiceGUI
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run()
+    port = find_free_port(8080)
+    ui.run(port=port)
