@@ -71,7 +71,7 @@ typeCheckingMode = "off"
 reportMissingImports = false
 reportMissingTypeStubs = false
 useLibraryCodeForTypes = true
-include = ["trajpy"]
+include = ["trajpy_ui"]
 
 [tool.bandit]
 exclude_dirs = ["tests"]
@@ -80,13 +80,18 @@ exclude_dirs = ["tests"]
 addopts = "--ignore=tests/test_local_date_utils --cov --cov-report term-missing"
 
 [tool.coverage.run]
-source = ["trajpy"]
-omit = ["tests/*"]
+source = ["trajpy_ui"]
+omit = [
+    "*/tests/*",
+    "*/site-packages/*",
+    "*/.venv/*",
+]
+
 
 [tool.setuptools.package-data]
-"trajpy" = []
+"trajpy_ui" = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["trajpy*"]
+include = ["trajpy_ui*"]
 exclude = ["tests"]
