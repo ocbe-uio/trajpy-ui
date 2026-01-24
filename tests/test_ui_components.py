@@ -1,6 +1,7 @@
 
 import unittest
-from trajpy_ui.ui import normalize_upload_event, load_trajectories_from_uploads
+
+from trajpy_ui.ui import load_trajectories_from_uploads, normalize_upload_event
 
 
 class MockFile:
