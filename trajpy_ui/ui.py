@@ -18,6 +18,8 @@ FEATURES = [
     "Fractal dimension",
     "Anisotropy & Kurtosis",
     "Straightness",
+    "Velocity description",
+    "Frequency spectrum",
     "Efficiency",
     "Gaussianity",
     "Diffusivity",
@@ -251,6 +253,46 @@ def compute_selected():
                 errors.append(f"Trajectory {n + 1}: Straightness - {str(e)}")
                 state["results"][n]["straightness"] = "Error"
 
+        if any("Velocity description" in feature for feature in selected):
+            try:
+                if not isinstance(r.velocity, np.ndarray):
+                    r.velocity = r.velocity_(r._r, r._t)
+                r.velocity_description = r.velocity_description_(r.velocity)
+
+                # Store all 8 velocity descriptors
+                state["results"][n]["vel_mean"] = r.velocity_description.get("mean", "N/A")
+                state["results"][n]["vel_median"] = r.velocity_description.get("median", "N/A")
+                state["results"][n]["vel_mode"] = r.velocity_description.get("mode", "N/A")
+                state["results"][n]["vel_std"] = r.velocity_description.get("standard_deviation", "N/A")
+                state["results"][n]["vel_variance"] = r.velocity_description.get("variance", "N/A")
+                state["results"][n]["vel_range"] = r.velocity_description.get("range", "N/A")
+                state["results"][n]["vel_kurtosis"] = r.velocity_description.get("kurtosis", "N/A")
+                state["results"][n]["vel_skewness"] = r.velocity_description.get("skewness", "N/A")
+            except Exception as e:
+                errors.append(f"Trajectory {n + 1}: Velocity Description - {str(e)}")
+                state["results"][n]["vel_mean"] = "Error"
+                state["results"][n]["vel_median"] = "Error"
+                state["results"][n]["vel_mode"] = "Error"
+                state["results"][n]["vel_std"] = "Error"
+                state["results"][n]["vel_variance"] = "Error"
+                state["results"][n]["vel_range"] = "Error"
+                state["results"][n]["vel_kurtosis"] = "Error"
+                state["results"][n]["vel_skewness"] = "Error"
+
+        if any("Frequency spectrum" in feature for feature in selected):
+            try:
+                norm_r = np.linalg.norm(r._r, axis=1).reshape(-1, 1)
+                r.frequency_spectrum = r.frequency_spectrum_(norm_r, r._t)
+
+                state["results"][n]["dominant_frequency"] = r.frequency_spectrum["dominant frequency"][0]
+                state["results"][n]["dominant_amplitude"] = r.frequency_spectrum["dominant amplitude"][0]
+
+            except Exception as e:
+                errors.append(f"Trajectory {n + 1}: Frequency Spectrum - {str(e)}")
+                state["results"][n]["freq_spectrum"] = "Error"
+
+
+
         if any("Efficiency" in feature for feature in selected):
             try:
                 r.efficiency = r.efficiency_(r._r)
@@ -399,8 +441,6 @@ with ui.row():
     plot_btn = ui.button("Plot Trajectories", on_click=lambda: plot_trajectories())
     save_btn = ui.button("Save results (CSV)", on_click=lambda: save_results()).props("disabled")
     result_box = ui.label("No results yet")
-
-# Remove the old plot_container definition at the bottom
 
 
 # Start NiceGUI
