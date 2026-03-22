@@ -16,7 +16,7 @@ keywords = [
   "repeated-mesurements"
 ]
 dependencies = [
-    "trajpy>=1.4.3",
+    "trajpy>=1.4.4",
     "nicegui>=3.6.1",
     "matplotlib>=3.10.8",
 ]
