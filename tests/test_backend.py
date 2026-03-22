@@ -3,6 +3,7 @@ import unittest
 
 from trajpy_ui.backend import load_trajectories_from_uploads, normalize_upload_event
 
+
 class MockFile:
     """Mock NiceGUI file object"""
 
