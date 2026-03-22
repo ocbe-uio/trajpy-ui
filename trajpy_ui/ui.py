@@ -1,7 +1,14 @@
 import trajpy
 from nicegui import ui
 
-from trajpy_ui.backend import compute_selected, handle_multi_upload, plot_trajectories, remove_file, save_results, show_about
+from trajpy_ui.backend import (
+    compute_selected,
+    handle_multi_upload,
+    plot_trajectories,
+    remove_file,
+    save_results,
+    show_about,
+)
 from trajpy_ui.config import FEATURES, STATE
 from trajpy_ui.utils import find_free_port
 
@@ -9,6 +16,7 @@ ui.markdown(f"# TrajPy GUI — version {trajpy.__version__}")
 
 # ── file list panel (refreshed after every upload / removal) ─────────────────
 file_list_container = ui.column().style("gap: 4px")
+
 
 def refresh_file_list():
     file_list_container.clear()
@@ -24,6 +32,7 @@ def refresh_file_list():
                         icon="close",
                         on_click=lambda _, idx=i: remove_file(idx, STATE, result_box, refresh_file_list),
                     ).props("flat dense round color=negative").tooltip("Remove file")
+
 
 # ── upload widget ─────────────────────────────────────────────────────────────
 with ui.row():

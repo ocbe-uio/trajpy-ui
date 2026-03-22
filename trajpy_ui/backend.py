@@ -86,8 +86,7 @@ def remove_file(index, state, result_box, refresh_fn):
         state["trajectories"] = load_trajectories_from_uploads(state["uploaded_files"])
         n = len(state["uploaded_files"])
         result_box.set_text(
-            f"{len(state['trajectories'])} trajectory(ies) loaded from {n} file(s)"
-            if n > 0 else "No files uploaded"
+            f"{len(state['trajectories'])} trajectory(ies) loaded from {n} file(s)" if n > 0 else "No files uploaded"
         )
     except Exception as e:
         result_box.set_text(f"Error removing file: {e}")
@@ -238,14 +237,14 @@ def compute_selected(state: dict, checkboxes: dict, result_box, save_btn):
 
                 # Map descriptor key -> raw per-axis array from velocity_description_
                 descriptor_map = {
-                    "mean":               "mean",
-                    "median":             "median",
-                    "mode":               "mode",
-                    "std":                "standard_deviation",
-                    "variance":           "variance",
-                    "range":              "range",
-                    "kurtosis":           "kurtosis",
-                    "skewness":           "skewness",
+                    "mean": "mean",
+                    "median": "median",
+                    "mode": "mode",
+                    "std": "standard_deviation",
+                    "variance": "variance",
+                    "range": "range",
+                    "kurtosis": "kurtosis",
+                    "skewness": "skewness",
                 }
 
                 for short_key, vd_key in descriptor_map.items():
@@ -258,7 +257,9 @@ def compute_selected(state: dict, checkboxes: dict, result_box, save_btn):
                             val = val[0]
                         val = float(val)
                         # std=0 on a constant-velocity axis causes NaN in skewness/kurtosis
-                        state["results"][n][f"vel_{short_key}_{axis}"] = "NaN" if (np.isnan(val) or np.isinf(val)) else val
+                        state["results"][n][f"vel_{short_key}_{axis}"] = (
+                            "NaN" if (np.isnan(val) or np.isinf(val)) else val
+                        )
 
             except Exception as e:
                 errors.append(f"Trajectory {n + 1}: Velocity Description - {str(e)}")
@@ -276,14 +277,22 @@ def compute_selected(state: dict, checkboxes: dict, result_box, save_btn):
                 r.frequency_spectrum = r.frequency_spectrum_(r._r, r._t)
                 for i in range(n_dims):
                     axis = axis_labels[i] if i < len(axis_labels) else str(i)
-                    state["results"][n][f"dominant_frequency_{axis}"] = float(r.frequency_spectrum["dominant frequency"][i])
-                    state["results"][n][f"dominant_amplitude_{axis}"] = float(r.frequency_spectrum["dominant amplitude"][i])
+                    state["results"][n][f"dominant_frequency_{axis}"] = float(
+                        r.frequency_spectrum["dominant frequency"][i]
+                    )
+                    state["results"][n][f"dominant_amplitude_{axis}"] = float(
+                        r.frequency_spectrum["dominant amplitude"][i]
+                    )
 
                 # Euclidean norm |r(t)| — scalar signal representing distance from origin
                 norm_r = np.linalg.norm(r._r, axis=1).reshape(-1, 1)
                 r.frequency_spectrum_norm = r.frequency_spectrum_(norm_r, r._t)
-                state["results"][n]["dominant_frequency_norm"] = float(r.frequency_spectrum_norm["dominant frequency"][0])
-                state["results"][n]["dominant_amplitude_norm"] = float(r.frequency_spectrum_norm["dominant amplitude"][0])
+                state["results"][n]["dominant_frequency_norm"] = float(
+                    r.frequency_spectrum_norm["dominant frequency"][0]
+                )
+                state["results"][n]["dominant_amplitude_norm"] = float(
+                    r.frequency_spectrum_norm["dominant amplitude"][0]
+                )
 
             except Exception as e:
                 errors.append(f"Trajectory {n + 1}: Frequency Spectrum - {str(e)}")
