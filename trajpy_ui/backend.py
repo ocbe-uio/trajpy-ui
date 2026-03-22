@@ -340,7 +340,7 @@ def compute_selected(state: dict, checkboxes: dict, result_box, save_btn):
     if state["results"]:
         first = state["results"].get(0, {})
         lines = [f"{k}: {v}" for k, v in first.items()]
-        result_text = "Resultater (første trajectory):\n" + "\n".join(lines)
+        result_text = "Results preview (only first trajectory):\n" + "\n".join(lines)
 
         if errors:
             result_text += f"\n\nWarnings/Errors ({len(errors)}):\n" + "\n".join(errors[:5])
