@@ -1,18 +1,40 @@
 import trajpy
 from nicegui import ui
 
-from trajpy_ui.backend import compute_selected, handle_upload, plot_trajectories, save_results, show_about
+from trajpy_ui.backend import compute_selected, handle_multi_upload, plot_trajectories, remove_file, save_results, show_about
 from trajpy_ui.config import FEATURES, STATE
 from trajpy_ui.utils import find_free_port
 
 ui.markdown(f"# TrajPy GUI — version {trajpy.__version__}")
 
+# ── file list panel (refreshed after every upload / removal) ─────────────────
+file_list_container = ui.column().style("gap: 4px")
+
+def refresh_file_list():
+    file_list_container.clear()
+    with file_list_container:
+        if not STATE["uploaded_files"]:
+            ui.label("No files uploaded yet.").style("color: grey; font-style: italic")
+        else:
+            for i, (name, _) in enumerate(STATE["uploaded_files"]):
+                with ui.row().style("align-items: center; gap: 8px"):
+                    ui.icon("insert_drive_file").style("color: #555")
+                    ui.label(name).style("flex-grow: 1")
+                    ui.button(
+                        icon="close",
+                        on_click=lambda _, idx=i: remove_file(idx, STATE, result_box, refresh_file_list),
+                    ).props("flat dense round color=negative").tooltip("Remove file")
+
+# ── upload widget ─────────────────────────────────────────────────────────────
 with ui.row():
     upload = ui.upload(
         label="Upload one or several files (CSV or YAML)",
         multiple=True,
-        on_upload=lambda event: handle_upload(event, STATE, result_box),
+        auto_upload=True,
+        on_multi_upload=lambda event: handle_multi_upload(event, STATE, result_box, refresh_file_list),
     )
+
+refresh_file_list()
 
 # Create a row to place features and plot side by side
 with ui.row().style("width: 100%; gap: 20px"):

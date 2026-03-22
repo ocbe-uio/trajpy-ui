@@ -79,21 +79,59 @@ def normalize_upload_event(event):
     return normalized
 
 
-def handle_upload(event, state, result_box):
+def remove_file(index, state, result_box, refresh_fn):
+    """Remove an uploaded file by index, reload trajectories and refresh the file list."""
+    try:
+        state["uploaded_files"].pop(index)
+        state["trajectories"] = load_trajectories_from_uploads(state["uploaded_files"])
+        n = len(state["uploaded_files"])
+        result_box.set_text(
+            f"{len(state['trajectories'])} trajectory(ies) loaded from {n} file(s)"
+            if n > 0 else "No files uploaded"
+        )
+    except Exception as e:
+        result_box.set_text(f"Error removing file: {e}")
+    finally:
+        refresh_fn()
+
+
+def handle_upload(event, state, result_box, refresh_fn=None):
+    """Handle a single-file upload event (on_upload, fires once per file)."""
     try:
         uploaded = normalize_upload_event(event)
-
-        # Append to existing files instead of replacing
         state["uploaded_files"].extend(uploaded)
-        result_box.set_text(f"{len(state['uploaded_files'])} file(s) uploaded total")
-
-        # Reload all trajectories from all uploaded files
         state["trajectories"] = load_trajectories_from_uploads(state["uploaded_files"])
         result_box.set_text(
             f"{len(state['trajectories'])} trajectory(ies) loaded from {len(state['uploaded_files'])} file(s)"
         )
     except Exception as e:
         result_box.set_text(f"Error loading files: {e}")
+    finally:
+        if refresh_fn:
+            refresh_fn()
+
+
+def handle_multi_upload(event, state, result_box, refresh_fn=None):
+    """Handle a multi-file upload event (on_multi_upload, fires once with all files).
+    event.files is a list of FileUpload objects.
+    """
+    try:
+        for f in event.files:
+            name = f.name
+            content = f._data if hasattr(f, "_data") else f.read()
+            if hasattr(content, "read"):
+                content = content.read()
+            state["uploaded_files"].append((name, content))
+
+        state["trajectories"] = load_trajectories_from_uploads(state["uploaded_files"])
+        result_box.set_text(
+            f"{len(state['trajectories'])} trajectory(ies) loaded from {len(state['uploaded_files'])} file(s)"
+        )
+    except Exception as e:
+        result_box.set_text(f"Error loading files: {e}")
+    finally:
+        if refresh_fn:
+            refresh_fn()
 
 
 def compute_selected(state: dict, checkboxes: dict, result_box, save_btn):
@@ -195,37 +233,66 @@ def compute_selected(state: dict, checkboxes: dict, result_box, save_btn):
                     r.velocity = r.velocity_(r._r, r._t)
                 r.velocity_description = r.velocity_description_(r.velocity)
 
-                # Store all 8 velocity descriptors
-                state["results"][n]["vel_mean"] = r.velocity_description.get("mean", "N/A")
-                state["results"][n]["vel_median"] = r.velocity_description.get("median", "N/A")
-                state["results"][n]["vel_mode"] = r.velocity_description.get("mode", "N/A")
-                state["results"][n]["vel_std"] = r.velocity_description.get("standard_deviation", "N/A")
-                state["results"][n]["vel_variance"] = r.velocity_description.get("variance", "N/A")
-                state["results"][n]["vel_range"] = r.velocity_description.get("range", "N/A")
-                state["results"][n]["vel_kurtosis"] = r.velocity_description.get("kurtosis", "N/A")
-                state["results"][n]["vel_skewness"] = r.velocity_description.get("skewness", "N/A")
+                axis_labels = ["x", "y", "z"]
+                n_dims = r.velocity.shape[1] if r.velocity.ndim > 1 else 1
+
+                # Map descriptor key -> raw per-axis array from velocity_description_
+                descriptor_map = {
+                    "mean":               "mean",
+                    "median":             "median",
+                    "mode":               "mode",
+                    "std":                "standard_deviation",
+                    "variance":           "variance",
+                    "range":              "range",
+                    "kurtosis":           "kurtosis",
+                    "skewness":           "skewness",
+                }
+
+                for short_key, vd_key in descriptor_map.items():
+                    raw = r.velocity_description[vd_key]
+                    for i in range(n_dims):
+                        axis = axis_labels[i] if i < len(axis_labels) else str(i)
+                        val = raw[i]
+                        # mode returns nested arrays (e.g. array([0.])); extract scalar
+                        if hasattr(val, "__len__"):
+                            val = val[0]
+                        val = float(val)
+                        # std=0 on a constant-velocity axis causes NaN in skewness/kurtosis
+                        state["results"][n][f"vel_{short_key}_{axis}"] = "NaN" if (np.isnan(val) or np.isinf(val)) else val
+
             except Exception as e:
                 errors.append(f"Trajectory {n + 1}: Velocity Description - {str(e)}")
-                state["results"][n]["vel_mean"] = "Error"
-                state["results"][n]["vel_median"] = "Error"
-                state["results"][n]["vel_mode"] = "Error"
-                state["results"][n]["vel_std"] = "Error"
-                state["results"][n]["vel_variance"] = "Error"
-                state["results"][n]["vel_range"] = "Error"
-                state["results"][n]["vel_kurtosis"] = "Error"
-                state["results"][n]["vel_skewness"] = "Error"
+                axis_labels = ["x", "y", "z"]
+                for short_key in ["mean", "median", "mode", "std", "variance", "range", "kurtosis", "skewness"]:
+                    for axis in axis_labels:
+                        state["results"][n][f"vel_{short_key}_{axis}"] = "Error"
 
         if any("Frequency spectrum" in feature for feature in selected):
             try:
-                norm_r = np.linalg.norm(r._r, axis=1).reshape(-1, 1)
-                r.frequency_spectrum = r.frequency_spectrum_(norm_r, r._t)
+                axis_labels = ["x", "y", "z"]
+                n_dims = r._r.shape[1] if r._r.ndim > 1 else 1
 
-                state["results"][n]["dominant_frequency"] = r.frequency_spectrum["dominant frequency"][0]
-                state["results"][n]["dominant_amplitude"] = r.frequency_spectrum["dominant amplitude"][0]
+                # Per-axis frequency spectrum
+                r.frequency_spectrum = r.frequency_spectrum_(r._r, r._t)
+                for i in range(n_dims):
+                    axis = axis_labels[i] if i < len(axis_labels) else str(i)
+                    state["results"][n][f"dominant_frequency_{axis}"] = float(r.frequency_spectrum["dominant frequency"][i])
+                    state["results"][n][f"dominant_amplitude_{axis}"] = float(r.frequency_spectrum["dominant amplitude"][i])
+
+                # Euclidean norm |r(t)| — scalar signal representing distance from origin
+                norm_r = np.linalg.norm(r._r, axis=1).reshape(-1, 1)
+                r.frequency_spectrum_norm = r.frequency_spectrum_(norm_r, r._t)
+                state["results"][n]["dominant_frequency_norm"] = float(r.frequency_spectrum_norm["dominant frequency"][0])
+                state["results"][n]["dominant_amplitude_norm"] = float(r.frequency_spectrum_norm["dominant amplitude"][0])
 
             except Exception as e:
                 errors.append(f"Trajectory {n + 1}: Frequency Spectrum - {str(e)}")
-                state["results"][n]["freq_spectrum"] = "Error"
+                axis_labels = ["x", "y", "z"]
+                for axis in axis_labels:
+                    state["results"][n][f"dominant_frequency_{axis}"] = "Error"
+                    state["results"][n][f"dominant_amplitude_{axis}"] = "Error"
+                state["results"][n]["dominant_frequency_norm"] = "Error"
+                state["results"][n]["dominant_amplitude_norm"] = "Error"
 
         if any("Efficiency" in feature for feature in selected):
             try:
